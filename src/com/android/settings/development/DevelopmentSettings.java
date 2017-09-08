@@ -215,6 +215,8 @@ public class DevelopmentSettings extends RestrictedSettingsFragment
     private static final String BLUETOOTH_SELECT_A2DP_BITS_PER_SAMPLE_KEY = "bluetooth_select_a2dp_bits_per_sample";
     private static final String BLUETOOTH_SELECT_A2DP_CHANNEL_MODE_KEY = "bluetooth_select_a2dp_channel_mode";
     private static final String BLUETOOTH_SELECT_A2DP_LDAC_PLAYBACK_QUALITY_KEY = "bluetooth_select_a2dp_ldac_playback_quality";
+    private static final String BLUETOOTH_SELECT_A2DP_LHDC_PLAYBACK_QUALITY_KEY = "bluetooth_select_a2dp_lhdc_playback_quality";
+    private static final String BLUETOOTH_SELECT_A2DP_LHDC_LATENCY_KEY = "bluetooth_select_a2dp_lhdc_latency";
 
     private static final String INACTIVE_APPS_KEY = "inactive_apps";
 
@@ -291,6 +293,8 @@ public class DevelopmentSettings extends RestrictedSettingsFragment
     private ListPreference mBluetoothSelectA2dpBitsPerSample;
     private ListPreference mBluetoothSelectA2dpChannelMode;
     private ListPreference mBluetoothSelectA2dpLdacPlaybackQuality;
+    private ListPreference mBluetoothSelectA2dpLhdcPlaybackQuality;
+    private ListPreference mBluetoothSelectA2dpLhdcLatency;
 
     private SwitchPreference mOtaDisableAutomaticUpdate;
     private SwitchPreference mWifiAllowScansWithTraffic;
@@ -505,6 +509,8 @@ public class DevelopmentSettings extends RestrictedSettingsFragment
         mBluetoothSelectA2dpBitsPerSample = addListPreference(BLUETOOTH_SELECT_A2DP_BITS_PER_SAMPLE_KEY);
         mBluetoothSelectA2dpChannelMode = addListPreference(BLUETOOTH_SELECT_A2DP_CHANNEL_MODE_KEY);
         mBluetoothSelectA2dpLdacPlaybackQuality = addListPreference(BLUETOOTH_SELECT_A2DP_LDAC_PLAYBACK_QUALITY_KEY);
+        mBluetoothSelectA2dpLhdcPlaybackQuality = addListPreference(BLUETOOTH_SELECT_A2DP_LHDC_PLAYBACK_QUALITY_KEY);
+        mBluetoothSelectA2dpLhdcLatency = addListPreference(BLUETOOTH_SELECT_A2DP_LHDC_LATENCY_KEY);
         initBluetoothConfigurationValues();
 
         mWindowAnimationScale = addListPreference(WINDOW_ANIMATION_SCALE_KEY);
@@ -1785,6 +1791,18 @@ public class DevelopmentSettings extends RestrictedSettingsFragment
         index = 3;
         mBluetoothSelectA2dpLdacPlaybackQuality.setValue(values[index]);
         mBluetoothSelectA2dpLdacPlaybackQuality.setSummary(summaries[index]);
+
+        values = getResources().getStringArray(R.array.bluetooth_a2dp_codec_lhdc_playback_quality_values);
+        summaries = getResources().getStringArray(R.array.bluetooth_a2dp_codec_lhdc_playback_quality_summaries);
+        index = 0;
+        mBluetoothSelectA2dpLhdcPlaybackQuality.setValue(values[index]);
+        mBluetoothSelectA2dpLhdcPlaybackQuality.setSummary(summaries[index]);
+
+        values = getResources().getStringArray(R.array.bluetooth_a2dp_codec_lhdc_latency_values);
+        summaries = getResources().getStringArray(R.array.bluetooth_a2dp_codec_lhdc_latency_summaries);
+        index = 0;
+        mBluetoothSelectA2dpLhdcLatency.setValue(values[index]);
+        mBluetoothSelectA2dpLhdcLatency.setSummary(summaries[index]);
     }
 
     private void writeBluetoothAvrcpVersion(Object newValue) {
@@ -1846,6 +1864,9 @@ public class DevelopmentSettings extends RestrictedSettingsFragment
             break;
         case BluetoothCodecConfig.SOURCE_CODEC_TYPE_LDAC:
             index = 5;
+            break;
+        case BluetoothCodecConfig.SOURCE_CODEC_TYPE_LHDC:
+            index = 6;
             break;
         case BluetoothCodecConfig.SOURCE_CODEC_TYPE_INVALID:
         default:
@@ -1925,31 +1946,69 @@ public class DevelopmentSettings extends RestrictedSettingsFragment
              mBluetoothSelectA2dpChannelMode.setSummary(streaming);
         }
 
-        // Update the LDAC Playback Quality
-        // The actual values are 0, 1, 2 - those are extracted
-        // as mod-10 remainders of a larger value.
-        // The reason is because within BluetoothCodecConfig we cannot use
-        // a codec-specific value of zero.
-        index = (int)codecConfig.getCodecSpecific1();
-        if (index > 0) {
-            index %= 10;
-        } else {
-            index = -1;
-        }
-        switch (index) {
-        case 0:
-        case 1:
-        case 2:
-        case 3:
-            break;
-        default:
-            index = -1;
-            break;
-        }
-        if (index >= 0 && mBluetoothSelectA2dpLdacPlaybackQuality != null) {
-            summaries = resources.getStringArray(R.array.bluetooth_a2dp_codec_ldac_playback_quality_summaries);
-            streaming = resources.getString(R.string.bluetooth_select_a2dp_codec_streaming_label, summaries[index]);
-            mBluetoothSelectA2dpLdacPlaybackQuality.setSummary(streaming);
+        if (codecConfig.getCodecType() == BluetoothCodecConfig.SOURCE_CODEC_TYPE_LDAC) {
+
+            // Update the LDAC Playback Quality
+            // The actual values are 0, 1, 2 - those are extracted
+            // as mod-10 remainders of a larger value.
+            // The reason is because within BluetoothCodecConfig we cannot use
+            // a codec-specific value of zero.
+            index = (int)codecConfig.getCodecSpecific1();
+            if (index > 0) {
+                index %= 10;
+            } else {
+                index = -1;
+            }
+            switch (index) {
+            case 0:
+            case 1:
+            case 2:
+            case 3:
+                break;
+            default:
+                index = -1;
+                break;
+            }
+            if (index >= 0 && mBluetoothSelectA2dpLdacPlaybackQuality != null) {
+                summaries = resources.getStringArray(R.array.bluetooth_a2dp_codec_ldac_playback_quality_summaries);
+                streaming = resources.getString(R.string.bluetooth_select_a2dp_codec_streaming_label, summaries[index]);
+                mBluetoothSelectA2dpLdacPlaybackQuality.setSummary(streaming);
+            }
+        }else if (codecConfig.getCodecType() == BluetoothCodecConfig.SOURCE_CODEC_TYPE_LHDC) {
+
+            // Update the LHDC Playback Quality
+            // The actual values are 0, 1, 2 - those are extracted
+            // as mod-10 remainders of a larger value.
+            // The reason is because within BluetoothCodecConfig we cannot use
+            // a codec-specific value of zero.
+            index = (int)codecConfig.getCodecSpecific1();
+            int tmp = index & 0xC000;
+            if (tmp == 0x8000) {
+                index &= 0xff;
+            } else {
+                index = -1;
+            }
+            Log.d(TAG, String.format("Quality:0x%04x", index));
+            if (index >= 0 && mBluetoothSelectA2dpLhdcPlaybackQuality != null) {
+                summaries = resources.getStringArray(R.array.bluetooth_a2dp_codec_lhdc_playback_quality_summaries);
+                streaming = resources.getString(R.string.bluetooth_select_a2dp_codec_streaming_label, summaries[index]);
+                mBluetoothSelectA2dpLhdcPlaybackQuality.setSummary(streaming);
+            }
+
+            // Update the Latency Mode
+            index = (int)codecConfig.getCodecSpecific2();
+            tmp = index & 0xC000;
+            if (tmp == 0xC000) {
+                index &= 0xff;
+            } else {
+                index = -1;
+            }
+            Log.d(TAG, String.format("Latency:0x%04x", index));
+            if (index >= 0 && mBluetoothSelectA2dpLhdcLatency != null) {
+                summaries = resources.getStringArray(R.array.bluetooth_a2dp_codec_lhdc_latency_summaries);
+                streaming = resources.getString(R.string.bluetooth_select_a2dp_codec_streaming_label, summaries[index]);
+                mBluetoothSelectA2dpLhdcLatency.setSummary(streaming);
+            }
         }
     }
 
@@ -1967,6 +2026,7 @@ public class DevelopmentSettings extends RestrictedSettingsFragment
         long codecSpecific3Value = 0;
         long codecSpecific4Value = 0;
 
+        BluetoothCodecStatus codecStatus = mBluetoothA2dp.getCodecStatus();
         // Codec Type
         String codecType = mBluetoothSelectA2dpCodec.getValue();
         if (preference == mBluetoothSelectA2dpCodec) {
@@ -2000,6 +2060,9 @@ public class DevelopmentSettings extends RestrictedSettingsFragment
             case 5:
                 codecTypeValue = BluetoothCodecConfig.SOURCE_CODEC_TYPE_LDAC;
                 break;
+            case 6:
+                codecTypeValue = BluetoothCodecConfig.SOURCE_CODEC_TYPE_LHDC;
+                break;
             default:
                 break;
             }
@@ -2024,14 +2087,19 @@ public class DevelopmentSettings extends RestrictedSettingsFragment
             codecTypeValue = BluetoothCodecConfig.SOURCE_CODEC_TYPE_LDAC;
             codecPriorityValue = BluetoothCodecConfig.CODEC_PRIORITY_HIGHEST;
             break;
+
         case 6:
+            codecTypeValue = BluetoothCodecConfig.SOURCE_CODEC_TYPE_LHDC;
+            codecPriorityValue = BluetoothCodecConfig.CODEC_PRIORITY_HIGHEST;
+            break;
+        case 7:
         synchronized (mBluetoothA2dpLock) {
             if (mBluetoothA2dp != null) {
                 mBluetoothA2dp.enableOptionalCodecs();
             }
         }
         return;
-        case 7:
+        case 8:
         synchronized (mBluetoothA2dpLock) {
             if (mBluetoothA2dp != null) {
                 mBluetoothA2dp.disableOptionalCodecs();
@@ -2126,28 +2194,87 @@ public class DevelopmentSettings extends RestrictedSettingsFragment
             break;
         }
 
-        // LDAC Playback Quality
-        String ldacPlaybackQuality = mBluetoothSelectA2dpLdacPlaybackQuality.getValue();
-        if (preference == mBluetoothSelectA2dpLdacPlaybackQuality) {
-            ldacPlaybackQuality = newValue.toString();
-            index = mBluetoothSelectA2dpLdacPlaybackQuality.findIndexOfValue(newValue.toString());
-            if (index >= 0) {
-                summaries = getResources().getStringArray(R.array.bluetooth_a2dp_codec_ldac_playback_quality_summaries);
-                mBluetoothSelectA2dpLdacPlaybackQuality.setSummary(summaries[index]);
+        int index2 = mBluetoothSelectA2dpCodec.findIndexOfValue(codecType);
+        if (codecStatus != null) {
+            BluetoothCodecConfig codecConfig = codecStatus.getCodecConfig();
+            //int codecType = codecConfig.getCodecType();
+
+            switch (codecConfig.getCodecType()) {
+            case BluetoothCodecConfig.SOURCE_CODEC_TYPE_SBC:
+                index2 = 1;
+                break;
+            case BluetoothCodecConfig.SOURCE_CODEC_TYPE_AAC:
+                index2 = 2;
+                break;
+            case BluetoothCodecConfig.SOURCE_CODEC_TYPE_APTX:
+                index2 = 3;
+                break;
+            case BluetoothCodecConfig.SOURCE_CODEC_TYPE_APTX_HD:
+                index2 = 4;
+                break;
+            case BluetoothCodecConfig.SOURCE_CODEC_TYPE_LDAC:
+                index2 = 5;
+                break;
+            case BluetoothCodecConfig.SOURCE_CODEC_TYPE_LHDC:
+                index2 = 6;
+                break;
+            case BluetoothCodecConfig.SOURCE_CODEC_TYPE_INVALID:
+            default:
+                break;
             }
         }
-        index = mBluetoothSelectA2dpLdacPlaybackQuality.findIndexOfValue(ldacPlaybackQuality);
-        switch (index) {
-        case 0:
-        case 1:
-        case 2:
-        case 3:
-            codecSpecific1Value = 1000 + index;
-            break;
-        default:
-            break;
-        }
 
+        //Log.d(TAG, "writeBluetoothConfigurationOption():Codec[" + index2 + "] codecSpecific1Value = " + String.format("0x%04x", codecSpecific1Value));
+        if (preference == mBluetoothSelectA2dpLdacPlaybackQuality && index2 == 5 /* codec index equals LDAC*/) {
+            // LDAC Playback Quality
+            String ldacPlaybackQuality = mBluetoothSelectA2dpLdacPlaybackQuality.getValue();
+            if (preference == mBluetoothSelectA2dpLdacPlaybackQuality) {
+                ldacPlaybackQuality = newValue.toString();
+                index = mBluetoothSelectA2dpLdacPlaybackQuality.findIndexOfValue(newValue.toString());
+                if (index >= 0) {
+                    summaries = getResources().getStringArray(R.array.bluetooth_a2dp_codec_ldac_playback_quality_summaries);
+                    mBluetoothSelectA2dpLdacPlaybackQuality.setSummary(summaries[index]);
+                }
+            }
+            index = mBluetoothSelectA2dpLdacPlaybackQuality.findIndexOfValue(ldacPlaybackQuality);
+            if (index <= 3) {
+                codecSpecific1Value = 1000 + index;
+            }
+
+        } else if ((preference == mBluetoothSelectA2dpLhdcPlaybackQuality || preference == mBluetoothSelectA2dpLhdcLatency) && index2 == 6 /* codec index equals LHDC*/) {
+            // LHDC Playback Quality
+            String lhdcPlaybackQuality = mBluetoothSelectA2dpLhdcPlaybackQuality.getValue();
+            if (preference == mBluetoothSelectA2dpLhdcPlaybackQuality) {
+                lhdcPlaybackQuality = newValue.toString();
+                index = mBluetoothSelectA2dpLhdcPlaybackQuality.findIndexOfValue(newValue.toString());
+                if (index >= 0) {
+                    summaries = getResources().getStringArray(R.array.bluetooth_a2dp_codec_lhdc_playback_quality_summaries);
+                    mBluetoothSelectA2dpLhdcPlaybackQuality.setSummary(summaries[index]);
+                }
+            }
+            index = mBluetoothSelectA2dpLhdcPlaybackQuality.findIndexOfValue(lhdcPlaybackQuality);
+            if (index <= 3) {
+                codecSpecific1Value = 0x8000 | index;
+            }
+
+
+
+            // Channel Mode
+            String latencyMode = mBluetoothSelectA2dpLhdcLatency.getValue();
+            if (preference == mBluetoothSelectA2dpLhdcLatency) {
+                latencyMode = newValue.toString();
+                index = mBluetoothSelectA2dpLhdcLatency.findIndexOfValue(newValue.toString());
+                if (index >= 0) {
+                    summaries = getResources().getStringArray(R.array.bluetooth_a2dp_codec_lhdc_latency_summaries);
+                    mBluetoothSelectA2dpLhdcLatency.setSummary(summaries[index]);
+                }
+            }
+            index = mBluetoothSelectA2dpLhdcLatency.findIndexOfValue(latencyMode);
+            if (index <= 2) {
+                codecSpecific2Value = 0xC000 | index;
+            }
+        }
+        Log.d(TAG, "writeBluetoothConfigurationOption():Codec[" + index2 + "]" + String.format("Quality:0x%04x, Latency:0x%04x", codecSpecific1Value, codecSpecific2Value));
         BluetoothCodecConfig codecConfig =
             new BluetoothCodecConfig(codecTypeValue, codecPriorityValue,
                                      sampleRateValue, bitsPerSampleValue,
@@ -2539,7 +2666,9 @@ public class DevelopmentSettings extends RestrictedSettingsFragment
                    (preference == mBluetoothSelectA2dpSampleRate) ||
                    (preference == mBluetoothSelectA2dpBitsPerSample) ||
                    (preference == mBluetoothSelectA2dpChannelMode) ||
-                   (preference == mBluetoothSelectA2dpLdacPlaybackQuality)) {
+                   (preference == mBluetoothSelectA2dpLdacPlaybackQuality) ||
+                   (preference == mBluetoothSelectA2dpLhdcPlaybackQuality) ||
+                   (preference == mBluetoothSelectA2dpLhdcLatency)) {
             writeBluetoothConfigurationOption(preference, newValue);
             return true;
         } else if (preference == mLogdSize) {
