@@ -217,6 +217,7 @@ public class DevelopmentSettings extends RestrictedSettingsFragment
     private static final String BLUETOOTH_SELECT_A2DP_LDAC_PLAYBACK_QUALITY_KEY = "bluetooth_select_a2dp_ldac_playback_quality";
     private static final String BLUETOOTH_SELECT_A2DP_LHDC_PLAYBACK_QUALITY_KEY = "bluetooth_select_a2dp_lhdc_playback_quality";
     private static final String BLUETOOTH_SELECT_A2DP_LHDC_LATENCY_KEY = "bluetooth_select_a2dp_lhdc_latency";
+    private static final String BLUETOOTH_SELECT_A2DP_LHDC_LL_PLAYBACK_QUALITY_KEY = "bluetooth_select_a2dp_lhdc_ll_playback_quality";
 
     private static final String INACTIVE_APPS_KEY = "inactive_apps";
 
@@ -295,6 +296,7 @@ public class DevelopmentSettings extends RestrictedSettingsFragment
     private ListPreference mBluetoothSelectA2dpLdacPlaybackQuality;
     private ListPreference mBluetoothSelectA2dpLhdcPlaybackQuality;
     private ListPreference mBluetoothSelectA2dpLhdcLatency;
+    private ListPreference mBluetoothSelectA2dpLhdcllPlaybackQuality;
 
     private SwitchPreference mOtaDisableAutomaticUpdate;
     private SwitchPreference mWifiAllowScansWithTraffic;
@@ -511,6 +513,7 @@ public class DevelopmentSettings extends RestrictedSettingsFragment
         mBluetoothSelectA2dpLdacPlaybackQuality = addListPreference(BLUETOOTH_SELECT_A2DP_LDAC_PLAYBACK_QUALITY_KEY);
         mBluetoothSelectA2dpLhdcPlaybackQuality = addListPreference(BLUETOOTH_SELECT_A2DP_LHDC_PLAYBACK_QUALITY_KEY);
         mBluetoothSelectA2dpLhdcLatency = addListPreference(BLUETOOTH_SELECT_A2DP_LHDC_LATENCY_KEY);
+        mBluetoothSelectA2dpLhdcllPlaybackQuality = addListPreference(BLUETOOTH_SELECT_A2DP_LHDC_LL_PLAYBACK_QUALITY_KEY);
         initBluetoothConfigurationValues();
 
         mWindowAnimationScale = addListPreference(WINDOW_ANIMATION_SCALE_KEY);
@@ -1803,6 +1806,12 @@ public class DevelopmentSettings extends RestrictedSettingsFragment
         index = 0;
         mBluetoothSelectA2dpLhdcLatency.setValue(values[index]);
         mBluetoothSelectA2dpLhdcLatency.setSummary(summaries[index]);
+        
+        values = getResources().getStringArray(R.array.bluetooth_a2dp_codec_lhdc_ll_playback_quality_values);
+        summaries = getResources().getStringArray(R.array.bluetooth_a2dp_codec_lhdc_ll_playback_quality_summaries);
+        index = 0;
+        mBluetoothSelectA2dpLhdcllPlaybackQuality.setValue(values[index]);
+        mBluetoothSelectA2dpLhdcllPlaybackQuality.setSummary(summaries[index]);
     }
 
     private void writeBluetoothAvrcpVersion(Object newValue) {
@@ -1867,6 +1876,9 @@ public class DevelopmentSettings extends RestrictedSettingsFragment
             break;
         case BluetoothCodecConfig.SOURCE_CODEC_TYPE_LHDC:
             index = 6;
+            break;
+        case BluetoothCodecConfig.SOURCE_CODEC_TYPE_LHDC_LL:
+            index = 7;
             break;
         case BluetoothCodecConfig.SOURCE_CODEC_TYPE_INVALID:
         default:
@@ -2009,6 +2021,42 @@ public class DevelopmentSettings extends RestrictedSettingsFragment
                 streaming = resources.getString(R.string.bluetooth_select_a2dp_codec_streaming_label, summaries[index]);
                 mBluetoothSelectA2dpLhdcLatency.setSummary(streaming);
             }
+        }else if (codecConfig.getCodecType() == BluetoothCodecConfig.SOURCE_CODEC_TYPE_LHDC_LL) {
+
+            // Update the LHDC Playback Quality
+            // The actual values are 0, 1, 2 - those are extracted
+            // as mod-10 remainders of a larger value.
+            // The reason is because within BluetoothCodecConfig we cannot use
+            // a codec-specific value of zero.
+            index = (int)codecConfig.getCodecSpecific1();
+            int tmp = index & 0xC000;
+            if (tmp == 0x8000) {
+                index &= 0xff;
+            } else {
+                index = -1;
+            }
+            Log.d(TAG, String.format("Quality:0x%04x", index));
+            if (index >= 0 && mBluetoothSelectA2dpLhdcllPlaybackQuality != null) {
+                summaries = resources.getStringArray(R.array.bluetooth_a2dp_codec_lhdc_ll_playback_quality_summaries);
+                streaming = resources.getString(R.string.bluetooth_select_a2dp_codec_streaming_label, summaries[index]);
+                mBluetoothSelectA2dpLhdcllPlaybackQuality.setSummary(streaming);
+            }
+/*
+            // Update the Latency Mode
+            index = (int)codecConfig.getCodecSpecific2();
+            tmp = index & 0xC000;
+            if (tmp == 0xC000) {
+                index &= 0xff;
+            } else {
+                index = -1;
+            }
+            Log.d(TAG, String.format("Latency:0x%04x", index));
+            if (index >= 0 && mBluetoothSelectA2dpLhdcLatency != null) {
+                summaries = resources.getStringArray(R.array.bluetooth_a2dp_codec_lhdc_latency_summaries);
+                streaming = resources.getString(R.string.bluetooth_select_a2dp_codec_streaming_label, summaries[index]);
+                mBluetoothSelectA2dpLhdcLatency.setSummary(streaming);
+            }
+            */
         }
     }
 
@@ -2063,6 +2111,9 @@ public class DevelopmentSettings extends RestrictedSettingsFragment
             case 6:
                 codecTypeValue = BluetoothCodecConfig.SOURCE_CODEC_TYPE_LHDC;
                 break;
+            case 7:
+                codecTypeValue = BluetoothCodecConfig.SOURCE_CODEC_TYPE_LHDC_LL;
+                break;
             default:
                 break;
             }
@@ -2087,19 +2138,22 @@ public class DevelopmentSettings extends RestrictedSettingsFragment
             codecTypeValue = BluetoothCodecConfig.SOURCE_CODEC_TYPE_LDAC;
             codecPriorityValue = BluetoothCodecConfig.CODEC_PRIORITY_HIGHEST;
             break;
-
         case 6:
             codecTypeValue = BluetoothCodecConfig.SOURCE_CODEC_TYPE_LHDC;
             codecPriorityValue = BluetoothCodecConfig.CODEC_PRIORITY_HIGHEST;
             break;
         case 7:
+            codecTypeValue = BluetoothCodecConfig.SOURCE_CODEC_TYPE_LHDC_LL;
+            codecPriorityValue = BluetoothCodecConfig.CODEC_PRIORITY_HIGHEST;
+            break;
+        case 8:
         synchronized (mBluetoothA2dpLock) {
             if (mBluetoothA2dp != null) {
                 mBluetoothA2dp.enableOptionalCodecs();
             }
         }
         return;
-        case 8:
+        case 9:
         synchronized (mBluetoothA2dpLock) {
             if (mBluetoothA2dp != null) {
                 mBluetoothA2dp.disableOptionalCodecs();
@@ -2218,6 +2272,9 @@ public class DevelopmentSettings extends RestrictedSettingsFragment
             case BluetoothCodecConfig.SOURCE_CODEC_TYPE_LHDC:
                 index2 = 6;
                 break;
+            case BluetoothCodecConfig.SOURCE_CODEC_TYPE_LHDC_LL:
+                index2 = 7;
+                break;
             case BluetoothCodecConfig.SOURCE_CODEC_TYPE_INVALID:
             default:
                 break;
@@ -2259,7 +2316,7 @@ public class DevelopmentSettings extends RestrictedSettingsFragment
 
 
 
-            // Channel Mode
+            // LHDC latency Mode
             String latencyMode = mBluetoothSelectA2dpLhdcLatency.getValue();
             if (preference == mBluetoothSelectA2dpLhdcLatency) {
                 latencyMode = newValue.toString();
@@ -2273,6 +2330,39 @@ public class DevelopmentSettings extends RestrictedSettingsFragment
             if (index <= 2) {
                 codecSpecific2Value = 0xC000 | index;
             }
+        }else if ((preference == mBluetoothSelectA2dpLhdcllPlaybackQuality /*|| preference == mBluetoothSelectA2dpLhdcLatency*/) && index2 == 7 /* codec index equals LHDC LL*/) {
+            // LHDC LL Playback Quality
+            String lhdcllPlaybackQuality = mBluetoothSelectA2dpLhdcllPlaybackQuality.getValue();
+            if (preference == mBluetoothSelectA2dpLhdcllPlaybackQuality) {
+                lhdcllPlaybackQuality = newValue.toString();
+                index = mBluetoothSelectA2dpLhdcllPlaybackQuality.findIndexOfValue(newValue.toString());
+                if (index >= 0) {
+                    summaries = getResources().getStringArray(R.array.bluetooth_a2dp_codec_lhdc_ll_playback_quality_summaries);
+                    mBluetoothSelectA2dpLhdcllPlaybackQuality.setSummary(summaries[index]);
+                }
+            }
+            index = mBluetoothSelectA2dpLhdcllPlaybackQuality.findIndexOfValue(lhdcllPlaybackQuality);
+            if (index <= 3) {
+                codecSpecific1Value = 0x8000 | index;
+            }
+
+
+
+            // LHDC LL latency Mode
+            /*
+            String latencyMode = mBluetoothSelectA2dpLhdcLatency.getValue();
+            if (preference == mBluetoothSelectA2dpLhdcLatency) {
+                latencyMode = newValue.toString();
+                index = mBluetoothSelectA2dpLhdcLatency.findIndexOfValue(newValue.toString());
+                if (index >= 0) {
+                    summaries = getResources().getStringArray(R.array.bluetooth_a2dp_codec_lhdc_latency_summaries);
+                    mBluetoothSelectA2dpLhdcLatency.setSummary(summaries[index]);
+                }
+            }
+            index = mBluetoothSelectA2dpLhdcLatency.findIndexOfValue(latencyMode);
+            if (index <= 2) {
+                codecSpecific2Value = 0xC000 | index;
+            }*/
         }
         Log.d(TAG, "writeBluetoothConfigurationOption():Codec[" + index2 + "]" + String.format("Quality:0x%04x, Latency:0x%04x", codecSpecific1Value, codecSpecific2Value));
         BluetoothCodecConfig codecConfig =
@@ -2668,7 +2758,8 @@ public class DevelopmentSettings extends RestrictedSettingsFragment
                    (preference == mBluetoothSelectA2dpChannelMode) ||
                    (preference == mBluetoothSelectA2dpLdacPlaybackQuality) ||
                    (preference == mBluetoothSelectA2dpLhdcPlaybackQuality) ||
-                   (preference == mBluetoothSelectA2dpLhdcLatency)) {
+                   (preference == mBluetoothSelectA2dpLhdcLatency) ||
+                   (preference == mBluetoothSelectA2dpLhdcllPlaybackQuality)) {
             writeBluetoothConfigurationOption(preference, newValue);
             return true;
         } else if (preference == mLogdSize) {
